@@ -1,0 +1,16 @@
+plugins {
+    id 'java'
+}
+
+group 'com.example'
+version '1.0-SNAPSHOT'
+
+repositories {
+    mavenCentral()
+    maven { url 'https://jitpack.io' }   // VERY IMPORTANT for MeepMeep
+}
+
+dependencies {
+    implementation 'com.noahbres.meepmeep:meepmeep:1.2.0'  // latest version as of now
+    implementation 'com.acmerobotics.roadrunner:core:1.0.1'
+}

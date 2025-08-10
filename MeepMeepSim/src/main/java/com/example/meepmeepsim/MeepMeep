@@ -1,0 +1,10 @@
+package com.example.meepmeepsim;
+
+import com.noahbres.meepmeep.MeepMeep;
+
+public class TestMeepMeep {
+    public static void main(String[] args) {
+        MeepMeep mm = new MeepMeep(800);
+        mm.start();
+    }
+}

@@ -46,6 +46,8 @@ import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.HardwareMap;
+import com.qualcomm.robotcore.hardware.CRServo;
+import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.hardware.VoltageSensor;
 
 import org.firstinspires.ftc.teamcode.messages.DriveCommandMessage;
@@ -61,6 +63,9 @@ import java.util.List;
 
 @Config
 public final class TankDrive {
+    public void setPoseEstimate(Pose2d pose) {
+    }
+
     public static class Params {
         // IMU orientation
         public RevHubOrientationOnRobot.LogoFacingDirection logoFacingDirection =
@@ -114,6 +119,11 @@ public final class TankDrive {
     public final LazyImu lazyImu;
 
     public final VoltageSensor voltageSensor;
+
+    public final DcMotorEx armMotor;
+    public final CRServo armServo;
+    public final Servo SpinServo;
+
 
     public final Localizer localizer;
     private final LinkedList<Pose2d> poseHistory = new LinkedList<>();
@@ -192,7 +202,7 @@ public final class TankDrive {
             meanRightVel /= rightEncs.size();
 
             FlightRecorder.write("TANK_LOCALIZER_INPUTS",
-                     new TankLocalizerInputsMessage(leftReadings, rightReadings));
+                    new TankLocalizerInputsMessage(leftReadings, rightReadings));
 
             if (!initialized) {
                 initialized = true;
@@ -243,7 +253,7 @@ public final class TankDrive {
         }
 
         // Reverse motor directions
-           rightMotors.get(0).setDirection(DcMotorSimple.Direction.REVERSE);
+        rightMotors.get(0).setDirection(DcMotorSimple.Direction.REVERSE);
 
         // TODO: make sure your config has an IMU with this name (can be BNO or BHI)
         //   see https://ftc-docs.firstinspires.org/en/latest/hardware_and_software_configuration/configuring/index.html
@@ -251,6 +261,15 @@ public final class TankDrive {
                 PARAMS.logoFacingDirection, PARAMS.usbFacingDirection));
 
         voltageSensor = hardwareMap.voltageSensor.iterator().next();
+
+        armMotor = hardwareMap.get(DcMotorEx.class, "armMotor");
+        armMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        armMotor.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        armMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+
+        armServo = hardwareMap.get(CRServo.class, "armServo");
+        SpinServo = hardwareMap.get(Servo.class, "SpinServo");
+
 
         localizer = new DriveLocalizer(pose);
 
@@ -415,7 +434,7 @@ public final class TankDrive {
                     Vector2dDual.constant(new Vector2d(0, 0), 3),
                     txWorldTarget.heading.velocity().plus(
                             PARAMS.turnGain * localizer.getPose().heading.minus(txWorldTarget.heading.value()) +
-                            PARAMS.turnVelGain * (robotVelRobot.angVel - txWorldTarget.heading.velocity().value())
+                                    PARAMS.turnVelGain * (robotVelRobot.angVel - txWorldTarget.heading.velocity().value())
                     )
             );
             driveCommandWriter.write(new DriveCommandMessage(command));
@@ -502,5 +521,28 @@ public final class TankDrive {
                 defaultTurnConstraints,
                 defaultVelConstraint, defaultAccelConstraint
         );
+
+
     }
+
+    public void followTrajectory(TimeTrajectory trajectory) {
+        // Create the action that follows the trajectory
+        FollowTrajectoryAction followAction = new FollowTrajectoryAction(trajectory);
+
+        // Loop while the action is active and thread is not interrupted
+        while (!Thread.currentThread().isInterrupted() && followAction.run(new TelemetryPacket())) {
+            // Update the pose estimate continuously (optional if inside run)
+            updatePoseEstimate();
+
+            // You can add a small sleep to avoid busy waiting, e.g. 10ms
+            try {
+                Thread.sleep(10);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                break;
+            }
+        }
+    }
+
 }
+
